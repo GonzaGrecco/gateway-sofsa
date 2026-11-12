@@ -1,0 +1,39 @@
+# LiteLLM - Gateway SOFSA
+# Mismo archivo para dev / test / prod.
+
+model_list:
+  - model_name: claude-sonnet  # alias estable que usan las apps
+    litellm_params:
+      model: anthropic/claude-sonnet-5-5
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+router_settings:
+  num_retries: 2
+  cooldown_time: 30
+  # Con 2 instancias en prod, Redis es obligatorio para que los límites
+  # (rpm/tpm) y el cooldown se compartan entre ambas.
+  redis_host: os.environ/REDIS_HOST
+  redis_port: os.environ/REDIS_PORT
+  redis_password: os.environ/REDIS_PASSWORD
+  # Degradación controlada (descomentar al sumar un segundo modelo):
+  # fallbacks: [{"claude-sonnet": ["claude-haiku"]}]
+
+litellm_settings:
+  success_callback: ["langfuse"]
+  failure_callback: ["langfuse"]
+  # prometheus: métricas en /metrics/. Consultar cada instancia por separado, con una key
+  #   de solo lectura (usuario proxy_admin_viewer, sin modelos).
+  # otel: una traza por request al collector de SOFSA (OTEL_* en .env).
+  #   Ojo: incluye el prompt y la respuesta, salvo con turn_off_message_logging.
+  callbacks: ["prometheus", "otel"]
+  json_logs: true                        # logs estructurados para el SIEM
+  request_timeout: 120
+  drop_params: true
+  turn_off_message_logging: false        # true = solo metadatos (sin prompts/respuestas)
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  database_url: os.environ/DATABASE_URL
+  # Credenciales de proveedores cifradas en la base del gateway (con LITELLM_SALT_KEY), cargadas
+  # desde la consola. Sin esto la consola no puede guardar modelos ni credenciales.
+  store_model_in_db: true

@@ -1,0 +1,49 @@
+# Config SOLO para pruebas locales: modelos mock, sin credenciales reales.
+# Mismo alias que en config/config.yaml, así las apps no cambian al pasar a real.
+
+model_list:
+  - model_name: claude-sonnet
+    litellm_params:
+      model: anthropic/claude-sonnet-5-5
+      api_key: fake-key-local
+      mock_response: "Respuesta mock del gateway (claude-sonnet)."
+      # Precio por token (USD), igual al que LiteLLM tiene para Sonnet 5.5. Confirmar con Anthropic.
+      input_cost_per_token: 0.000002
+      output_cost_per_token: 0.00001
+  # Real: necesita ANTHROPIC_API_KEY en local/.env (gasta). Precio: el que trae LiteLLM.
+  - model_name: claude-sonnet-real
+    litellm_params:
+      model: anthropic/claude-sonnet-5-5
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+router_settings:
+  num_retries: 0
+  timeout: 30
+  redis_host: os.environ/REDIS_HOST
+  redis_port: os.environ/REDIS_PORT
+  redis_password: os.environ/REDIS_PASSWORD
+
+litellm_settings:
+  json_logs: true
+  drop_params: true
+  # Igual que en config/config.yaml. Langfuse corre aparte (local/langfuse/), OTel manda a Jaeger.
+  success_callback: ["langfuse"]
+  failure_callback: ["langfuse"]
+  callbacks: ["prometheus", "otel"]
+
+# Enmascara datos personales solo en lo que va a logs (no toca lo que viaja al modelo).
+# En logging_only se aplica a TODAS las llamadas (por key/team es Enterprise).
+# Descomentar solo con el profile pii arriba: si Presidio no responde, loguea sin enmascarar.
+# guardrails:
+#   - guardrail_name: pii-enmascarar-logs
+#     litellm_params:
+#       guardrail: presidio
+#       mode: logging_only
+#       presidio_analyzer_api_base: http://presidio-analyzer:3000
+#       presidio_anonymizer_api_base: http://presidio-anonymizer:3000
+#       presidio_ad_hoc_recognizers: /app/presidio-ar.json   # DNI, CUIT/CUIL, CBU, patente
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  database_url: os.environ/DATABASE_URL
+  store_model_in_db: true

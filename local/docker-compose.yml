@@ -1,0 +1,80 @@
+# Entorno local de prueba: LiteLLM + Postgres + Redis + Jaeger (collector OTel).
+#   docker compose up -d                 -> 1 instancia (puerto 4001)
+#   docker compose --profile ha up -d    -> además 2da instancia + nginx (puerto 8080)
+#   docker compose --profile pii up -d   -> además Presidio (enmascarado de datos personales en logs)
+#   Trazas OTel: http://localhost:16686
+
+name: gateway-sofsa-local
+
+x-litellm: &litellm
+  image: ghcr.io/berriai/litellm:v1.108.0   # versión probada; cambiarla implica repetir las pruebas
+  command: ["--config", "/app/config.yaml", "--port", "4000"]
+  volumes:
+    - ./config.local.yaml:/app/config.yaml:ro
+    - ../config/presidio-ar.json:/app/presidio-ar.json:ro
+  env_file: .env
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  extra_hosts:
+    - "host.docker.internal:host-gateway"   # para llegar a Langfuse local (local/langfuse)
+  restart: unless-stopped
+
+services:
+  litellm:
+    <<: *litellm
+    ports:
+      - "4001:4000"
+
+  litellm-2:
+    <<: *litellm
+    profiles: ["ha"]
+
+  nginx:
+    image: nginx:1.27-alpine
+    profiles: ["ha"]
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "8080:80"
+    depends_on: [litellm, litellm-2]
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: litellm
+      POSTGRES_PASSWORD: litellm
+      POSTGRES_DB: litellm
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U litellm"]
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--requirepass", "localredis"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "localredis", "ping"]
+      interval: 5s
+      retries: 10
+
+  # Hace de collector OTel de SOFSA: recibe OTLP/HTTP en 4318 (solo red interna)
+  jaeger:
+    image: jaegertracing/all-in-one:1.62.0
+    ports:
+      - "16686:16686"
+
+  presidio-analyzer:
+    image: mcr.microsoft.com/presidio-analyzer:2.2.361
+    profiles: ["pii"]
+
+  presidio-anonymizer:
+    image: mcr.microsoft.com/presidio-anonymizer:2.2.361
+    profiles: ["pii"]
+
+volumes:
+  pgdata:

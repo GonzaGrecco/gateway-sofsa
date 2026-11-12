@@ -1,0 +1,22 @@
+[
+  {
+    "name": "ar_dni",
+    "supported_language": "en",
+    "supported_entity": "AR_DNI",
+    "patterns": [
+      {"name": "dni_con_puntos", "regex": "\\b\\d{1,2}\\.\\d{3}\\.\\d{3}\\b", "score": 0.6},
+      {"name": "dni_sin_puntos", "regex": "\\b\\d{7,8}\\b", "score": 0.3}
+    ],
+    "context": ["dni", "documento", "doc", "d.n.i"]
+  },
+  {
+    "name": "ar_cuit_cuil",
+    "supported_language": "en",
+    "supported_entity": "AR_CUIT",
+    "patterns": [
+      {"name": "cuit_con_guiones", "regex": "\\b(20|23|24|27|30|33|34)-\\d{8}-\\d\\b", "score": 0.8},
+      {"name": "cuit_sin_guiones", "regex": "\\b(20|23|24|27|30|33|34)\\d{9}\\b", "score": 0.5}
+    ],
+    "context": ["cuit", "cuil"]
+  }
+]
