@@ -9,9 +9,10 @@ model_list:
 
 router_settings:
   num_retries: 2
-  cooldown_time: 30
-  # Con 2 instancias en prod, Redis es obligatorio para que los límites
-  # (rpm/tpm) y el cooldown se compartan entre ambas.
+  # Con un solo deployment por modelo, el cooldown convierte un error puntual de Anthropic
+  # en 429 para todas las apps durante cooldown_time. Reactivar al sumar un segundo deployment.
+  disable_cooldowns: true
+  # Con 2 instancias en prod, Redis es obligatorio para que los límites (rpm/tpm) se compartan.
   redis_host: os.environ/REDIS_HOST
   redis_port: os.environ/REDIS_PORT
   redis_password: os.environ/REDIS_PASSWORD
