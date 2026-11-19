@@ -1,6 +1,6 @@
 services:
   litellm:
-    image: ${LITELLM_IMAGE:-ghcr.io/berriai/litellm:v1.108.0}
+    image: ${LITELLM_IMAGE:-ghcr.io/berriai/litellm:v1.108.11@sha256:95253c31752cc3efc6c60f7e1a0ec064ede73ba48c19cc466a8af71e7fec48a7}
     command: ["--config", "/app/config.yaml", "--port", "4000"]
     volumes:
       - ../../config/${CONFIG_FILE:-config.yaml}:/app/config.yaml:ro

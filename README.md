@@ -52,7 +52,10 @@ Requisitos: Docker, git, curl y jq (en Windows, Git Bash o WSL).
 
 ## Notas
 - `LITELLM_SALT_KEY` cifra las credenciales en la base. **No se cambia nunca** después de cargarlas.
-- La imagen de LiteLLM está fijada en `v1.108.0`. Para cambiarla, volver a correr el smoke test.
+- La imagen de LiteLLM está fijada en `v1.108.11` por digest. Para cambiarla: verificar la firma, copiar al compose el `docker-manifest-digest` que devuelve y volver a correr el smoke test.
+  ```bash
+  cosign verify     --certificate-identity https://github.com/BerriAI/project-releaser/.github/workflows/release.yml@refs/heads/main     --certificate-oidc-issuer https://token.actions.githubusercontent.com     ghcr.io/berriai/litellm:<tag>
+  ```
 - Prometheus lee `/metrics/` de **cada VM**, no del balanceador, con la key `monitoreo-prometheus`.
 - VM 2 levanta Postgres y Redis, pero hasta tener alta disponibilidad quedan sin uso: su `DB_HOST` y su `REDIS_HOST` apuntan a VM 1. Con la alta disponibilidad pasan a ser réplicas.
 - El balanceador entre VM 1 y VM 2 está pendiente.
