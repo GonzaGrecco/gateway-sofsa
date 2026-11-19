@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 # Prueba de gobierno del gateway: crea team + key y valida permisos, rate limit y budget.
 # Al terminar borra los teams y keys que creó.
-# Uso: ./scripts/smoke-test.sh [URL] [MASTER_KEY]
-#   Contra el balanceador (profile ha: http://localhost:8080) el paso 5 valida
-#   además que el rate limit se comparta entre instancias.
+# Uso: ./scripts/smoke-test.sh URL MASTER_KEY
+#   Contra el balanceador, el paso 5 valida además que el rate limit se comparta entre instancias.
 # Requiere: curl, jq
 set -uo pipefail
 
@@ -11,15 +10,15 @@ for cmd in curl jq; do
   command -v "$cmd" >/dev/null || { echo "Falta '$cmd' en el PATH (Windows: winget install jqlang.jq)"; exit 1; }
 done
 
-URL="${1:-http://localhost:4001}"
-MASTER="${2:-sk-local-master-1234}"
+URL="${1:?uso: $0 URL MASTER_KEY}"
+MASTER="${2:?uso: $0 URL MASTER_KEY}"
 SUFFIX="$(date +%s)"
 PASS=0; FAIL=0
 
 ok()   { echo "  [OK]   $1"; PASS=$((PASS+1)); }
 bad()  { echo "  [FAIL] $1"; FAIL=$((FAIL+1)); }
 admin(){ curl -s -X POST "$URL$1" -H "Authorization: Bearer $MASTER" -H "Content-Type: application/json" -d "$2"; }
-chat() { # $1 key, $2 model -> imprime el HTTP code
+chat() {
   curl -s -o /dev/null -w "%{http_code}" -X POST "$URL/v1/chat/completions" \
     -H "Authorization: Bearer $1" -H "Content-Type: application/json" \
     -d "{\"model\":\"$2\",\"messages\":[{\"role\":\"user\",\"content\":\"hola\"}]}"
@@ -50,7 +49,7 @@ echo "3. Llamada permitida"
 [ "$(chat "$KEY" claude-sonnet)" = "200" ] && ok "claude-sonnet responde" || bad "claude-sonnet no respondió 200"
 
 echo "4. Modelo no habilitado para el team"
-OTRO="${OTRO_MODELO:-claude-sonnet-real}"   # cualquier modelo del config que el team no tenga
+OTRO="${OTRO_MODELO:-saco-chat}"
 CODE=$(chat "$KEY" "$OTRO")
 [[ "$CODE" =~ ^(401|403)$ ]] && ok "$OTRO bloqueado ($CODE)" || bad "$OTRO debería bloquearse (dio $CODE)"
 

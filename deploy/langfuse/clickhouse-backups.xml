@@ -1,0 +1,7 @@
+<clickhouse>
+    <!-- Habilita BACKUP ... TO File('...') (lo usa scripts/backup.sh). Va dentro del volumen de
+         datos porque ClickHouse corre como 101 y no puede escribir en un volumen nuevo de root. -->
+    <backups>
+        <allowed_path>/var/lib/clickhouse/backups/</allowed_path>
+    </backups>
+</clickhouse>

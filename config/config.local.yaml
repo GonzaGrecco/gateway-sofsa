@@ -1,0 +1,64 @@
+# Mismos alias que config.yaml con respuestas mock. Los *-real llaman a Anthropic (gastan).
+
+model_list:
+  - model_name: claude-sonnet
+    litellm_params:
+      model: anthropic/claude-sonnet-5-5
+      api_key: fake-key-local
+      mock_response: "Respuesta mock del gateway (claude-sonnet)."
+      input_cost_per_token: 0.000002
+      output_cost_per_token: 0.00001
+  - model_name: saco-chat
+    litellm_params:
+      model: openai/gpt-5.4-mini
+      api_key: fake-key-local
+      mock_response: "Respuesta mock del gateway (saco-chat)."
+  - model_name: saco-vision
+    litellm_params:
+      model: openai/gpt-5.4
+      api_key: fake-key-local
+      mock_response: "Respuesta mock del gateway (saco-vision)."
+  # El mock de embeddings devuelve texto, no un vector: solo sirve para probar permisos.
+  - model_name: saco-embeddings
+    litellm_params:
+      model: openai/text-embedding-3-large
+      api_key: fake-key-local
+      mock_response: "mock"
+  - model_name: sofia-chat
+    litellm_params:
+      model: openai/gpt-5.4-mini
+      api_key: fake-key-local
+      mock_response: "Respuesta mock del gateway (sofia-chat)."
+  - model_name: sofia-embeddings
+    litellm_params:
+      model: openai/text-embedding-3-large
+      api_key: fake-key-local
+      mock_response: "mock"
+  - model_name: claude-sonnet-real
+    litellm_params:
+      model: anthropic/claude-sonnet-5-5
+      api_key: os.environ/ANTHROPIC_API_KEY
+  - model_name: claude-haiku-real
+    litellm_params:
+      model: anthropic/claude-haiku-5-5
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+router_settings:
+  num_retries: 0
+  timeout: 30
+  disable_cooldowns: true
+  redis_host: os.environ/REDIS_HOST
+  redis_port: os.environ/REDIS_PORT
+  redis_password: os.environ/REDIS_PASSWORD
+
+litellm_settings:
+  json_logs: true
+  drop_params: true
+  success_callback: ["langfuse"]
+  failure_callback: ["langfuse"]
+  callbacks: ["prometheus"]
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  database_url: os.environ/DATABASE_URL
+  store_model_in_db: true

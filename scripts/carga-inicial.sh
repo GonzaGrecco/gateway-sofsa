@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
-# Carga inicial de teams y keys del gateway. Se puede correr más de una vez: lo que ya existe se saltea.
-# Valores iniciales a validar con SOFSA en el relevamiento:
-#   - presupuesto: paquete B3 ≈ USD 600/año ≈ USD 50/mes (reparto parejo, sin datos de consumo todavía)
-#   - todos los teams arrancan en "solo metadatos" (sin prompts ni respuestas en los logs)
-# Uso: ./scripts/carga-inicial.sh [URL] [MASTER_KEY]
-# Las keys nuevas se muestran una sola vez: entregarlas al responsable de cada app.
+# Se puede correr más de una vez: lo que ya existe se saltea.
+# Presupuestos y límites provisorios, a definir con SOFSA.
+# Uso: ./scripts/carga-inicial.sh URL MASTER_KEY
+# Las keys nuevas se muestran una sola vez.
 # Requiere: curl, jq
 set -uo pipefail
 
@@ -12,17 +10,15 @@ for cmd in curl jq; do
   command -v "$cmd" >/dev/null || { echo "Falta '$cmd' en el PATH (Windows: winget install jqlang.jq)"; exit 2; }
 done
 
-URL="${1:-http://localhost:4001}"
-MASTER="${2:-sk-local-master-1234}"
-MODELOS='["claude-sonnet"]'
+URL="${1:?uso: $0 URL MASTER_KEY}"
+MASTER="${2:?uso: $0 URL MASTER_KEY}"
 RPM=60
-SOLO_METADATOS='[{"callback_name":"otel","callback_type":"success","callback_vars":{"turn_off_message_logging":"true"}}]'
 
-# team | USD por mes | key de la app
+# team | USD por mes | key de la app | modelos (separados por coma)
 TEAMS=(
-  "saco|20|saco-app"
-  "sofia|20|sofia-app"
-  "plataforma|5|plataforma-pruebas"
+  "saco|20|saco-app|saco-chat,saco-vision,saco-embeddings"
+  "sofia|20|sofia-app|sofia-chat,sofia-embeddings"
+  "plataforma|5|plataforma-pruebas|claude-sonnet"
 )
 
 api() { curl -s -X "$1" "$URL$2" -H "Authorization: Bearer $MASTER" -H "Content-Type: application/json" ${3:+-d "$3"}; }
@@ -31,13 +27,14 @@ EXISTENTES_T=$(api GET /team/list) || { echo "No se pudo leer /team/list en $URL
 EXISTENTES_K=$(api GET "/key/list?return_full_object=true&size=100")
 
 for fila in "${TEAMS[@]}"; do
-  IFS='|' read -r TEAM USD KEY <<<"$fila"
+  IFS='|' read -r TEAM USD KEY MODS <<<"$fila"
+  MODELOS=$(jq -nc --arg m "$MODS" '$m | split(",")')
   TID=$(jq -r --arg a "$TEAM" '[.[] | select(.team_alias == $a) | .team_id][0] // empty' <<<"$EXISTENTES_T")
   if [ -n "$TID" ]; then
     echo "team $TEAM: ya existe"
   else
-    TID=$(api POST /team/new "$(jq -nc --arg a "$TEAM" --argjson m "$MODELOS" --argjson b "$USD" --argjson l "$SOLO_METADATOS" \
-      '{team_alias:$a, models:$m, max_budget:$b, budget_duration:"30d", metadata:{logging:$l}}')" | jq -r '.team_id // empty')
+    TID=$(api POST /team/new "$(jq -nc --arg a "$TEAM" --argjson m "$MODELOS" --argjson b "$USD" \
+      '{team_alias:$a, models:$m, max_budget:$b, budget_duration:"30d"}')" | jq -r '.team_id // empty')
     [ -n "$TID" ] && echo "team $TEAM: creado (USD $USD/mes)" || { echo "team $TEAM: ERROR al crear"; continue; }
   fi
 
@@ -49,7 +46,7 @@ for fila in "${TEAMS[@]}"; do
   fi
 done
 
-# Key de solo lectura para que el monitoreo lea /metrics/: usuario viewer sin acceso a modelos.
+# Key de solo lectura para que Prometheus lea /metrics/.
 if jq -e '.keys[] | select(.key_alias == "monitoreo-prometheus")' <<<"$EXISTENTES_K" >/dev/null; then
   echo "key monitoreo-prometheus: ya existe"
 else
